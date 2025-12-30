@@ -16,10 +16,10 @@
           jdk21
           coursier
           zsh
+          sqlite
         ];
         shellHook = ''
-        exec zsh
-        echo "starting project..."
+        zsh -c "echo starting flake...;exec zsh"
         export JAVA_HOME=${pkgs.jdk21}
         '';
       };

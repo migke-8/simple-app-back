@@ -1,31 +1,47 @@
 import io.javalin.Javalin
 import upickle.default.{ReadWriter, write, read}
 import scala.collection.mutable.ArrayBuffer
-case class Ball(id: Int, x: Int, y: Int, radius: Int) derives ReadWriter
-case class BallDTO(x: Int, y: Int, radius: Int) derives ReadWriter
+import scalikejdbc.*
+
 @main def run(): Unit = {
-  val db = ArrayBuffer(
-    Ball(1, 0, 0, 90),
-    Ball(2, 1021, 987, 101),
-    Ball(3, 1000, 29, 70)
-  )
+  DB.init()
   val app = Javalin
     .create()
     .get(
       "/api/balls",
-      (ctx) => ctx.json(write(db))
+      (ctx) => ctx.json(write(DB.all))
     )
     .get(
       "/api/balls/{id}",
-      (ctx) => ctx.json(write(db(ctx.pathParam("id").toInt)))
+      (ctx) => ctx.json(write(DB.find(ctx.pathParam("id").toLong)))
     )
     .post(
       "/api/balls",
       (ctx) => {
         val received = read[BallDTO](ctx.body)
-        db.addOne(Ball(db.length + 1, received.x, received.y, received.radius))
-        ctx.json(write(db.last))
+        ctx.json(write(DB.add(received)))
       }
     )
     .start(8080)
+}
+
+case class Ball(id: Long, x: Int, y: Int, radius: Int) derives ReadWriter
+case class BallDTO(x: Int, y: Int, radius: Int) derives ReadWriter
+
+object DB {
+
+  given session: DBSession = AutoSession
+
+  def init() = {
+    Class.forName("org.sqlite.JDBC")
+    ConnectionPool.singleton("jdbc:sqlite:database.db", "", "")
+  }
+  def all: List[Ball] = sql"select * from balls"
+    .map((rs) =>
+      Ball(rs.long("id"), rs.int("x"), rs.int("y"), rs.int("radius"))
+    )
+    .list
+    .apply()
+  def find(id: Long): Ball = ???
+  def add(dto: BallDTO): Ball = ???
 }
